@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Heimdall — God's Eye for Satellite Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #050508;
+      --bg2: #08090f;
+      --text: #e0e0e8;
+      --muted: rgba(255,255,255,0.35);
+      --dim: rgba(255,255,255,0.15);
+      --border: rgba(255,255,255,0.07);
+      --mono: 'Space Mono', monospace;
+      --sans: 'Inter', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      overflow-x: hidden;
+    }
+
+    /* ── UTILITY ── */
+    .mono { font-family: var(--mono); }
+    .tag {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.22);
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    /* ── GRID BACKGROUND ── */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+      background-size: 64px 64px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.2rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(5,5,8,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 200;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 3px;
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .logo-ring {
+      width: 28px; height: 28px;
+      border: 1.5px solid rgba(255,255,255,0.28);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-core {
+      width: 8px; height: 8px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+    .nav-links a {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: rgba(255,255,255,0.45);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+
+    .badge {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.14);
+      font-size: 8px;
+      padding: 2px 6px;
+      border-radius: 2px;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.5);
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    .btn-outline {
+      border: 1px solid rgba(255,255,255,0.22);
+      padding: 8px 20px;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: rgba(255,255,255,0.8);
+      cursor: pointer;
+      background: transparent;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-outline:hover { background: rgba(255,255,255,0.07); color: #fff; }
+
+    /* ── HERO ── */
+    #home {
+      min-height: 94vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 5rem 2.5rem 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .orbit-deco {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.04);
+      pointer-events: none;
+      top: 50%; left: 65%;
+      transform: translate(-50%, -50%);
+    }
+
+    .hero-eyebrow {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.22);
+      text-transform: uppercase;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      font-size: clamp(3rem, 6.5vw, 5.8rem);
+      font-weight: 300;
+      line-height: 1.04;
+      letter-spacing: -1.5px;
+      color: #fff;
+      margin-bottom: 1.6rem;
+      max-width: 860px;
+    }
+
+    .hero-sub {
+      font-size: 14px;
+      color: rgba(255,255,255,0.4);
+      max-width: 460px;
+      line-height: 1.85;
+      margin-bottom: 3rem;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #050508;
+      background: #fff;
+      padding: 14px 30px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+
+    /* stats bar */
+    .stats-bar {
+      display: flex;
+      margin-top: 4.5rem;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 0;
+    }
+    .stat {
+      padding: 1rem 2.5rem 1rem 0;
+      font-family: var(--mono);
+    }
+    .stat + .stat { border-left: 1px solid var(--border); padding-left: 2.5rem; }
+    .stat-label { font-size: 8px; letter-spacing: 2.5px; color: rgba(255,255,255,0.2); text-transform: uppercase; margin-bottom: 6px; }
+    .stat-val { font-size: 13px; color: rgba(255,255,255,0.75); }
+
+    .live-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: #4ade80;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+    /* ── VISUALIZER ── */
+    #visualizer {
+      position: relative;
+      height: 580px;
+      background: #000;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+    #three-canvas { display: block; }
+
+    #vis-ui {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    #vis-top {
+      display: flex;
+      justify-content: space-between;
+      padding: 14px 18px;
+    }
+    #vis-logo { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: rgba(255,255,255,0.4); }
+    #vis-stats { text-align: right; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: rgba(255,255,255,0.25); line-height: 2.1; }
+    #vis-stats span { color: rgba(255,255,255,0.65); }
+
+    #vis-bottom {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+    .leg { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: rgba(255,255,255,0.28); }
+    .leg-dot { width: 6px; height: 6px; border-radius: 50%; }
+    #vis-hint { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: rgba(255,255,255,0.18); text-align: right; line-height: 1.9; }
+
+    #filter-btns {
+      position: absolute;
+      top: 44px; right: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      pointer-events: all;
+    }
+    .fbtn {
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.09);
+      font-size: 8px;
+      letter-spacing: 1.5px;
+      color: rgba(255,255,255,0.35);
+      padding: 5px 10px;
+      cursor: pointer;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .fbtn.active { border-color: rgba(255,255,255,0.45); color: rgba(255,255,255,0.9); }
+    .fbtn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
+
+    #vis-tooltip {
+      position: absolute;
+      background: rgba(5,5,8,0.92);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 12px;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.65);
+      pointer-events: none;
+      display: none;
+      line-height: 2;
+    }
+
+    #vis-loading {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 10;
+    }
+    #vis-load-text { font-family: var(--mono); font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.35); }
+    #vis-load-wrap { width: 180px; height: 1px; background: rgba(255,255,255,0.08); }
+    #vis-load-bar { height: 1px; background: rgba(255,255,255,0.45); width: 0%; transition: width 0.35s; }
+
+    /* ── MISSION ── */
+    #mission {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5rem;
+      padding: 5rem 2.5rem;
+      border-top: 1px solid var(--border);
+      align-items: start;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+      font-weight: 300;
+      color: #fff;
+      line-height: 1.12;
+      margin-bottom: 1.5rem;
+    }
+
+    .body-text {
+      font-size: 14px;
+      color: rgba(255,255,255,0.42);
+      line-height: 1.95;
+      margin-bottom: 1.2rem;
+    }
+
+    .feed-panel { padding-top: 3rem; }
+    .feed-label { font-family: var(--mono); font-size: 8px; letter-spacing: 2.5px; color: rgba(255,255,255,0.18); margin-bottom: 1rem; text-transform: uppercase; }
+    .feed-item {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: rgba(255,255,255,0.18);
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      animation: fadein 0.4s ease;
+    }
+    @keyframes fadein { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+    .feed-type { color: rgba(255,255,255,0.35); min-width: 28px; }
+    .feed-name { flex: 1; }
+    .feed-alt { color: rgba(255,255,255,0.3); }
+
+    /* ── TEAM ── */
+    #team {
+      padding: 5rem 2.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .team-sub { font-family: var(--mono); font-size: 9px; letter-spacing: 2.5px; color: rgba(255,255,255,0.18); margin-bottom: 3rem; text-transform: uppercase; }
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--border);
+    }
+    .team-card {
+      padding: 2rem 1.6rem;
+      border-right: 1px solid var(--border);
+    }
+    .team-card:last-child { border-right: none; }
+    .team-num { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,0.18); margin-bottom: 1.5rem; }
+    .team-name { font-size: 15px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+    .team-role { font-size: 12px; color: rgba(255,255,255,0.3); margin-bottom: 1.5rem; }
+    .team-links { display: flex; gap: 12px; }
+    .team-links a {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.22);
+      text-decoration: none;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(255,255,255,0.09);
+      padding-bottom: 2px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .team-links a:hover { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.3); }
+
+    /* ── COMMS ── */
+    #comms {
+      padding: 5rem 2.5rem;
+      border-top: 1px solid var(--border);
+      background: rgba(255,255,255,0.01);
+    }
+    .comms-inner { max-width: 500px; }
+    .comms-label { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; color: rgba(255,255,255,0.18); margin-bottom: 0.5rem; text-transform: uppercase; }
+    .comms-title { font-size: 1.5rem; font-weight: 300; color: #fff; margin-bottom: 0.8rem; }
+    .comms-sub { font-size: 13px; color: rgba(255,255,255,0.3); margin-bottom: 2rem; line-height: 1.8; }
+    .email-row { display: flex; border: 1px solid rgba(255,255,255,0.1); }
+    .email-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 13px 16px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: #fff;
+      letter-spacing: 0.5px;
+    }
+    .email-input::placeholder { color: rgba(255,255,255,0.14); }
+    .email-btn {
+      background: transparent;
+      border: none;
+      border-left: 1px solid rgba(255,255,255,0.1);
+      padding: 13px 18px;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.4);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+    .email-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.8rem 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .footer-logo { font-family: var(--mono); font-size: 10px; letter-spacing: 2.5px; color: rgba(255,255,255,0.25); }
+    .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .footer-links a { font-size: 11px; color: rgba(255,255,255,0.2); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: rgba(255,255,255,0.55); }
+    .footer-copy { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,0.13); letter-spacing: 1px; }
+    .data-credit {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: rgba(255,255,255,0.13);
+      padding: 1rem 2.5rem;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      line-height: 1.9;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 1rem 1.2rem; }
+      .nav-links { gap: 1rem; }
+      .nav-links a { display: none; }
+      .nav-links a:last-child { display: block; }
+      #home, #mission, #team, #comms { padding: 3rem 1.2rem; }
+      #mission { grid-template-columns: 1fr; gap: 2.5rem; }
+      .team-grid { grid-template-columns: repeat(2, 1fr); }
+      .team-card:nth-child(2) { border-right: none; }
+      .team-card:nth-child(3) { border-right: 1px solid var(--border); }
+      h1 { font-size: 2.6rem; letter-spacing: -0.5px; }
+      footer { padding: 1.5rem 1.2rem; }
+      .data-credit { padding: 1rem 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- ── NAV ── -->
+<nav>
+  <a class="nav-logo" href="#home">
+    <div class="logo-ring"><div class="logo-core"></div></div>
+    HEIMDALL
+  </a>
+  <div class="nav-links">
+    <a href="#visualizer">Bifrost <span class="badge">NEW</span></a>
+    <a href="#mission">Mission</a>
+    <a href="#visualizer">Demo</a>
+    <a href="#team">Team</a>
+    <a class="btn-outline" href="#visualizer">Launch App</a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section id="home">
+  <!-- decorative orbit rings -->
+  <div class="orbit-deco" style="width:640px;height:640px;margin:-320px 0 0 -320px"></div>
+  <div class="orbit-deco" style="width:420px;height:420px;margin:-210px 0 0 -210px;border-color:rgba(255,255,255,0.06)"></div>
+  <div class="orbit-deco" style="width:220px;height:220px;margin:-110px 0 0 -110px;border-color:rgba(255,255,255,0.08)"></div>
+
+  <div style="position:relative;z-index:1">
+    <div class="hero-eyebrow">HEIMDALL / ORBITAL INTELLIGENCE PLATFORM</div>
+    <h1>God's Eye for<br>Satellite Intelligence.</h1>
+    <p class="hero-sub">Real-time orbital data for every public object in Earth's sphere of influence. Aggregated, processed, rendered at scale.</p>
+    <a class="btn-primary" href="#visualizer">[ LAUNCH VISUALIZER → ]</a>
+  </div>
+
+  <div class="stats-bar" style="position:relative;z-index:1">
+    <div class="stat">
+      <div class="stat-label">UTC</div>
+      <div class="stat-val mono" id="utc-clock">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Objects Tracked</div>
+      <div class="stat-val mono">27,000+</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Status</div>
+      <div class="stat-val mono"><span class="live-dot"></span>OPERATIONAL</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 3D VISUALIZER ── -->
+<div id="visualizer">
+  <div id="vis-loading">
+    <div id="vis-load-text">INITIALIZING ORBITAL FEED</div>
+    <div id="vis-load-wrap"><div id="vis-load-bar"></div></div>
+  </div>
+
+  <div id="vis-ui">
+    <div id="vis-top">
+      <div id="vis-logo">HEIMDALL / LIVE ORBITAL VISUALIZER</div>
+      <div id="vis-stats">
+        OBJECTS &nbsp;<span id="vs-count">—</span><br>
+        UTC &nbsp;<span id="vs-utc">—</span><br>
+        FEED &nbsp;<span id="vs-status">LOADING</span>
+      </div>
+    </div>
+
+    <div id="filter-btns">
+      <button class="fbtn active" data-cat="all">ALL</button>
+      <button class="fbtn" data-cat="stations">STATIONS</button>
+      <button class="fbtn" data-cat="starlink">STARLINK</button>
+      <button class="fbtn" data-cat="weather">WEATHER</button>
+      <button class="fbtn" data-cat="debris">DEBRIS</button>
+    </div>
+
+    <div id="vis-tooltip"></div>
+
+    <div id="vis-bottom">
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:#60a5fa"></div>CREWED / STATIONS</div>
+        <div class="leg"><div class="leg-dot" style="background:#4ade80"></div>ACTIVE SAT</div>
+        <div class="leg"><div class="leg-dot" style="background:#facc15"></div>WEATHER</div>
+        <div class="leg"><div class="leg-dot" style="background:#f87171"></div>DEBRIS</div>
+      </div>
+      <div id="vis-hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM &nbsp;·&nbsp; HOVER OBJECT</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MISSION ── -->
+<section id="mission">
+  <div>
+    <div class="tag">// MISSION</div>
+    <h2 class="section-title">Seeing Everything<br>in Orbit.</h2>
+    <p class="body-text">Space is getting crowded. From roughly 3,000 active satellites in 2020 to an estimated 100,000 by 2030, the need to understand the orbital environment has never been greater.</p>
+    <p class="body-text">Heimdall's mission is simple: make the most out of available space data and create value for the ones who need it most. Today, that data is scattered — satellite position, purpose, origin spread across disconnected sources.</p>
+    <p class="body-text">We're bringing it together. Aggregating all major orbital data sources into a single, continuously updated 3D environment spanning every tracked object in orbit — from lone cubesats to mega-constellations, debris to crewed stations, LEO to GEO.</p>
+    <p class="body-text" style="color:rgba(255,255,255,0.28);">Solving the space congestion problem is a collaborative effort. Heimdall is our contribution.</p>
+  </div>
+
+  <div class="feed-panel">
+    <div class="feed-label">Orbital Feed &nbsp;/&nbsp; Live</div>
+    <div id="feed-list"></div>
+  </div>
+</section>
+
+<!-- ── TEAM ── -->
+<section id="team">
+  <div class="tag">// TERMINUS</div>
+  <div class="team-sub">BUILT BY THE OBSESSED.</div>
+  <div class="team-grid">
+    <div class="team-card">
+      <div class="team-num">01</div>
+      <div class="team-name">Bruce Li</div>
+      <div class="team-role">Co-Founder</div>
+      <div class="team-links">
+        <a href="https://www.linkedin.com/in/ychengl1/" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://github.com/ycheng11065" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-num">02</div>
+      <div class="team-name">Thomas Spina</div>
+      <div class="team-role">Co-Founder</div>
+      <div class="team-links">
+        <a href="https://www.linkedin.com/in/thomas-spina/" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://github.com/thomasspina" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-num">03</div>
+      <div class="team-name">Kelvin Chen</div>
+      <div class="team-role">Founding Engineer</div>
+      <div class="team-links">
+        <a href="https://www.linkedin.com/in/kelv1n/" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://github.com/KelvinnC" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-num">04</div>
+      <div class="team-name">Kevin Wong</div>
+      <div class="team-role">Founding Engineer</div>
+      <div class="team-links">
+        <a href="https://www.linkedin.com/in/kevinwong711/" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://github.com/KeveenWong" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── COMMS ── -->
+<section id="comms">
+  <div class="comms-inner">
+    <div class="comms-label">COMMS.AUTH</div>
+    <h2 class="comms-title">Mission Updates</h2>
+    <p class="comms-sub">Receive release notes, roadmap milestones, and launch alerts before they go public.</p>
+    <div class="email-row">
+      <input class="email-input" type="email" placeholder="Email address"/>
+      <button class="email-btn">TRANSMIT →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">HEIMDALL</div>
+  <div class="footer-links">
+    <a href="https://www.linkedin.com/company/heimdall-space" target="_blank" rel="noopener">LinkedIn</a>
+    <a href="https://x.com/heimdall_space" target="_blank" rel="noopener">X</a>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+    <a href="mailto:support@heimdallspace.com">Support</a>
+  </div>
+  <div class="footer-copy">© 2026 All rights reserved.</div>
+</footer>
+<div class="data-credit mono">
+  Data: Space-Track.org &nbsp;·&nbsp; ISS Model: NASA 3D Resources &nbsp;·&nbsp; Catalog Data: J. McDowell, planet4589.org
+</div>
+
+<!-- ── THREE.JS ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── CLOCK ──
+function pad(v){ return String(v).padStart(2,'0'); }
+function updateClocks(){
+  const n = new Date();
+  const t = pad(n.getUTCHours())+':'+pad(n.getUTCMinutes())+':'+pad(n.getUTCSeconds());
+  document.getElementById('utc-clock').textContent = t;
+  const vu = document.getElementById('vs-utc');
+  if(vu) vu.textContent = t;
+}
+updateClocks();
+setInterval(updateClocks, 1000);
+
+// ── ORBITAL FEED ──
+const SAT_NAMES = ['NOAA-21','STARLINK-4521','ISS','TERRA','AQUA','COSMOS-2551','DEBRIS-7823','SENTINEL-6','GOES-18','IRIDIUM-106','METOP-C','LACROSSE-5','WORLDVIEW-3','LANDSAT-9','SUOMI-NPP','CRYOSAT-2','ENVISAT','JASON-3','CALIPSO','CLOUDSAT'];
+const FEED_TYPES = ['SAT','DEB','STN','COM','WEA','OBS'];
+const feedEl = document.getElementById('feed-list');
+function addFeedItem(){
+  const name = SAT_NAMES[Math.floor(Math.random()*SAT_NAMES.length)];
+  const type = FEED_TYPES[Math.floor(Math.random()*FEED_TYPES.length)];
+  const alt  = Math.floor(350 + Math.random()*35400);
+  const div  = document.createElement('div');
+  div.className = 'feed-item';
+  div.innerHTML = `<span class="feed-type">${type}</span><span class="feed-name">${name}</span><span class="feed-alt">${alt.toLocaleString()} KM</span>`;
+  feedEl.prepend(div);
+  if(feedEl.children.length > 9) feedEl.removeChild(feedEl.lastChild);
+}
+for(let i=0;i<7;i++) addFeedItem();
+setInterval(addFeedItem, 1800);
+
+// ── 3D VISUALIZER ──
+(function(){
+  const RAD = Math.PI/180;
+  const EARTH_R = 1.0;
+  const KM = 1/6371;
+
+  function setLoad(p, t){
+    document.getElementById('vis-load-bar').style.width = p+'%';
+    document.getElementById('vis-load-text').textContent = t;
+  }
+
+  // Orbital propagator (simplified Keplerian)
+  function getSyntheticPos(sat, T){
+    const period = sat.period * 60;
+    const M = sat.M + (2*Math.PI/period)*T;
+    const r = sat.alt;
+    const xp = r*Math.cos(M);
+    const yp = r*Math.sin(M);
+    const GMST = (280.46 + 360.985*(T/86400)) * RAD;
+    const ci = Math.cos(sat.inc), si = Math.sin(sat.inc);
+    const cr = Math.cos(sat.raan), sr = Math.sin(sat.raan);
+    const x = xp*(cr) - yp*(sr*ci);
+    const y = xp*(si*sr) + yp*(si*cr);
+    const z = xp*(sr*ci) + yp*(cr);
+    const cg = Math.cos(-GMST), sg = Math.sin(-GMST);
+    return { x: cg*x - sg*z, y: y, z: sg*x + cg*z };
+  }
+
+  function genSatellites(){
+    const s = [];
+    // Stations
+    s.push({name:'ISS (ZARYA)',   inc:51.6*RAD, raan:10*RAD,  M:0,    alt:(408)*KM+EARTH_R, period:92.5,  cat:'stations'});
+    s.push({name:'CSS (TIANHE)', inc:41.5*RAD, raan:120*RAD, M:1.1,  alt:(390)*KM+EARTH_R, period:91.5,  cat:'stations'});
+    s.push({name:'HST',          inc:28.5*RAD, raan:200*RAD, M:2.2,  alt:(537)*KM+EARTH_R, period:95.4,  cat:'stations'});
+    // Starlink
+    for(let i=0;i<130;i++){
+      s.push({name:'STARLINK-'+( 1000+i), inc:53*RAD, raan:(Math.floor(i/10)*36)*RAD, M:(i%10*36)*RAD, alt:550*KM+EARTH_R, period:95.5, cat:'starlink'});
+    }
+    // OneWeb
+    for(let i=0;i<40;i++){
+      s.push({name:'ONEWEB-'+i, inc:87.9*RAD, raan:(i*9)*RAD, M:(i*13)*RAD, alt:1200*KM+EARTH_R, period:109, cat:'starlink'});
+    }
+    // Weather
+    const wn=['NOAA-15','NOAA-18','NOAA-19','METOP-A','METOP-B','METOP-C','GOES-18','GOES-16','HIMAWARI-9','MSG-4','FENGYUN-4A'];
+    wn.forEach((n,i)=>{
+      const geo = i>=6;
+      s.push({name:n, inc:geo?0.1*RAD:98.7*RAD, raan:(i*33)*RAD, M:(i*40)*RAD, alt:(geo?35786:833)*KM+EARTH_R, period:geo?1436:102, cat:'weather'});
+    });
+    // Debris
+    for(let i=0;i<90;i++){
+      s.push({name:'DEB-'+Math.floor(10000+Math.random()*89999), inc:(20+Math.random()*130)*RAD, raan:Math.random()*2*Math.PI, M:Math.random()*2*Math.PI, alt:(300+Math.random()*1400)*KM+EARTH_R, period:90+Math.random()*65, cat:'debris'});
+    }
+    // Active misc
+    for(let i=0;i<200;i++){
+      s.push({name:'SAT-'+Math.floor(10000+Math.random()*89999), inc:Math.random()*140*RAD, raan:Math.random()*2*Math.PI, M:Math.random()*2*Math.PI, alt:(400+Math.random()*35000)*KM+EARTH_R, period:90+Math.random()*1400, cat:'active'});
+    }
+    return s;
+  }
+
+  const container = document.getElementById('visualizer');
+  const W = container.clientWidth, H = container.clientHeight;
+
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(W, H);
+  renderer.setClearColor(0x000000, 1);
+  renderer.domElement.id = 'three-canvas';
+  renderer.domElement.style.position = 'absolute';
+  renderer.domElement.style.inset = '0';
+  container.insertBefore(renderer.domElement, container.firstChild);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, W/H, 0.001, 1000);
+  camera.position.set(0, 0, 3.6);
+
+  // Stars
+  const starPos = new Float32Array(9000);
+  for(let i=0;i<9000;i++) starPos[i] = (Math.random()-0.5)*200;
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size:0.07, transparent:true, opacity:0.45})));
+
+  // Earth sphere
+  const earthMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R, 72, 72),
+    new THREE.MeshPhongMaterial({color:0x0b1a30, emissive:0x040c18, shininess:25})
+  );
+  scene.add(earthMesh);
+
+  // Atmosphere
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R*1.016, 64, 64),
+    new THREE.MeshPhongMaterial({color:0x1a4a88, transparent:true, opacity:0.12, side:THREE.FrontSide})
+  ));
+
+  // Earth grid lines
+  const gMat = new THREE.LineBasicMaterial({color:0x1a3560, transparent:true, opacity:0.28});
+  for(let lat=-60;lat<=60;lat+=30){
+    const pts=[], la=lat*RAD, r=EARTH_R*1.001;
+    for(let lng=0;lng<=360;lng+=4){ const lo=lng*RAD; pts.push(r*Math.cos(la)*Math.cos(lo), r*Math.sin(la), r*Math.cos(la)*Math.sin(lo)); }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pts),3));
+    scene.add(new THREE.Line(g,gMat));
+  }
+  for(let lng=0;lng<360;lng+=30){
+    const pts=[], lo=lng*RAD, r=EARTH_R*1.001;
+    for(let lat=-88;lat<=88;lat+=4){ const la=lat*RAD; pts.push(r*Math.cos(la)*Math.cos(lo), r*Math.sin(la), r*Math.cos(la)*Math.sin(lo)); }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pts),3));
+    scene.add(new THREE.Line(g,gMat));
+  }
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0x22334d, 2.2));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+  sun.position.set(6, 3, 5);
+  scene.add(sun);
+
+  // Satellite meshes
+  const CATS = {
+    stations: {color:0x60a5fa, size:0.022},
+    starlink:  {color:0x4ade80, size:0.006},
+    weather:   {color:0xfacc15, size:0.010},
+    debris:    {color:0xf87171, size:0.004},
+    active:    {color:0x4ade80, size:0.005}
+  };
+  const matCache = {};
+  function getMat(cat){
+    if(!matCache[cat]) matCache[cat] = new THREE.MeshBasicMaterial({color: (CATS[cat]||CATS.active).color});
+    return matCache[cat];
+  }
+
+  let satellites = [], satMeshes = [], activeFilter = 'all';
+
+  function buildScene(sats){
+    satMeshes.forEach(m=>scene.remove(m));
+    satMeshes = [];
+    satellites = sats;
+    sats.forEach(s=>{
+      const cat = s.cat||'active';
+      const sz = (CATS[cat]||CATS.active).size;
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(sz,4,4), getMat(cat));
+      mesh.userData.sat = s;
+      scene.add(mesh);
+      satMeshes.push(mesh);
+    });
+    document.getElementById('vs-count').textContent = sats.length.toLocaleString();
+  }
+
+  // Orbit controls
+  let isDrag=false, lastX=0, lastY=0, rotX=0.28, rotY=0, zoom=3.6;
+  const cvs = renderer.domElement;
+  cvs.addEventListener('mousedown', e=>{isDrag=true;lastX=e.clientX;lastY=e.clientY;});
+  window.addEventListener('mouseup', ()=>isDrag=false);
+  window.addEventListener('mousemove', e=>{
+    if(!isDrag) return;
+    rotY += (e.clientX-lastX)*0.005;
+    rotX += (e.clientY-lastY)*0.005;
+    rotX = Math.max(-1.4, Math.min(1.4, rotX));
+    lastX=e.clientX; lastY=e.clientY;
+  });
+  cvs.addEventListener('wheel', e=>{
+    zoom = Math.max(1.5, Math.min(9, zoom+e.deltaY*0.003));
+    e.preventDefault();
+  }, {passive:false});
+  cvs.addEventListener('touchstart', e=>{if(e.touches.length===1){isDrag=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}},{passive:true});
+  cvs.addEventListener('touchmove', e=>{if(isDrag&&e.touches.length===1){rotY+=(e.touches[0].clientX-lastX)*0.005;rotX+=(e.touches[0].clientY-lastY)*0.005;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}},{passive:true});
+  cvs.addEventListener('touchend', ()=>isDrag=false);
+
+  // Hover tooltip
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  const tip = document.getElementById('vis-tooltip');
+  cvs.addEventListener('mousemove', e=>{
+    const rect = cvs.getBoundingClientRect();
+    mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+    mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(satMeshes);
+    if(hits.length){
+      const s = hits[0].object.userData.sat;
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX-rect.left+16)+'px';
+      tip.style.top  = (e.clientY-rect.top-24)+'px';
+      tip.innerHTML = `<b style="color:#fff;letter-spacing:2px">${s.name}</b><br>TYPE: ${(s.cat||'SAT').toUpperCase()}<br>ALT: ${Math.round((s.alt-EARTH_R)/KM).toLocaleString()} KM`;
+    } else {
+      tip.style.display = 'none';
+    }
+  });
+
+  // Filter buttons
+  document.querySelectorAll('.fbtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.cat;
+      satMeshes.forEach(m=>{
+        m.visible = activeFilter==='all' || (m.userData.sat.cat||'active')===activeFilter;
+      });
+    });
+  });
+
+  const startTime = Date.now();
+  function animate(){
+    requestAnimationFrame(animate);
+    const T = (Date.now()-startTime)/1000;
+    satMeshes.forEach(m=>{
+      const p = getSyntheticPos(m.userData.sat, T);
+      if(p) m.position.set(p.x, p.y, p.z);
+    });
+    earthMesh.rotation.y = T * 0.01;
+    camera.position.x = zoom*Math.sin(rotY)*Math.cos(rotX);
+    camera.position.y = zoom*Math.sin(rotX);
+    camera.position.z = zoom*Math.cos(rotY)*Math.cos(rotX);
+    camera.lookAt(0,0,0);
+    renderer.render(scene, camera);
+  }
+
+  // Window resize
+  window.addEventListener('resize', ()=>{
+    const w=container.clientWidth, h=container.clientHeight;
+    camera.aspect=w/h; camera.updateProjectionMatrix();
+    renderer.setSize(w,h);
+  });
+
+  // Init sequence
+  setLoad(30, 'BUILDING ORBITAL ENVIRONMENT');
+  setTimeout(()=>{
+    setLoad(70, 'POPULATING SATELLITE CATALOG');
+    setTimeout(()=>{
+      buildScene(genSatellites());
+      setLoad(100, 'ORBITAL FEED ACTIVE');
+      setTimeout(()=>{
+        document.getElementById('vis-loading').style.display = 'none';
+        document.getElementById('vs-status').textContent = 'OPERATIONAL';
+        animate();
+      }, 400);
+    }, 500);
+  }, 400);
+})();
+</script>
+</body>
+</html>
