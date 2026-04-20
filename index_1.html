@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Heimdall — Live Orbital Map</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#000;--border:rgba(255,255,255,0.07);--mono:'Space Mono',monospace}
+    body{background:#000;color:#e0e0e8;font-family:var(--mono);overflow:hidden;height:100vh;width:100vw}
+
+    /* CANVAS */
+    #canvas-wrap{position:fixed;inset:0;z-index:0}
+    #canvas-wrap canvas{display:block;width:100%!important;height:100%!important}
+
+    /* LOADING */
+    #loading{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:1000}
+    .load-logo{font-family:var(--mono);font-size:14px;letter-spacing:4px;color:rgba(255,255,255,0.4);margin-bottom:8px}
+    .load-line{width:240px;height:1px;background:rgba(255,255,255,0.08)}
+    .load-fill{height:100%;background:rgba(255,255,255,0.5);width:0%;transition:width .4s ease}
+    .load-text{font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.25);text-transform:uppercase}
+
+    /* NAV */
+    #top-nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:linear-gradient(to bottom,rgba(0,0,0,0.7),transparent)}
+    .nav-logo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:3px;color:#fff;text-decoration:none}
+    .logo-ring{width:24px;height:24px;border:1.5px solid rgba(255,255,255,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center}
+    .logo-core{width:7px;height:7px;background:#fff;border-radius:50%}
+    .nav-right{display:flex;align-items:center;gap:1.5rem}
+    .nav-link{font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-decoration:none;text-transform:uppercase;transition:color .2s;cursor:pointer}
+    .nav-link:hover{color:#fff}
+    .nav-link.active-page{color:rgba(255,255,255,0.75)}
+
+    /* LEFT PANEL */
+    #left-panel{position:fixed;left:0;top:0;bottom:0;width:280px;background:rgba(0,0,0,0.7);border-right:1px solid var(--border);z-index:50;display:flex;flex-direction:column;backdrop-filter:blur(8px);transition:transform .3s}
+    #left-panel.collapsed{transform:translateX(-280px)}
+    .lp-header{padding:70px 16px 14px;border-bottom:1px solid var(--border)}
+    .lp-title{font-size:8px;letter-spacing:3px;color:rgba(255,255,255,0.25);text-transform:uppercase;margin-bottom:12px}
+    .search-box{display:flex;border:1px solid var(--border);background:rgba(255,255,255,0.03)}
+    .search-input{flex:1;background:transparent;border:none;outline:none;padding:8px 10px;font-family:var(--mono);font-size:9px;color:#fff;letter-spacing:0.5px}
+    .search-input::placeholder{color:rgba(255,255,255,0.15)}
+    .search-btn{padding:8px 10px;font-size:10px;color:rgba(255,255,255,0.25);background:transparent;border:none;cursor:pointer}
+
+    .filter-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+    .fs-label{font-size:8px;letter-spacing:2.5px;color:rgba(255,255,255,0.18);margin-bottom:10px;text-transform:uppercase}
+    .filter-chips{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{font-size:8px;letter-spacing:1px;padding:5px 10px;border:1px solid var(--border);color:rgba(255,255,255,0.3);cursor:pointer;transition:all .2s;text-transform:uppercase}
+    .chip:hover{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.7)}
+    .chip.on{border-color:rgba(255,255,255,0.5);color:#fff;background:rgba(255,255,255,0.06)}
+    .chip-dot{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+    .sat-list{flex:1;overflow-y:auto;padding:0}
+    .sat-list::-webkit-scrollbar{width:2px}
+    .sat-list::-webkit-scrollbar-track{background:transparent}
+    .sat-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1)}
+    .sat-item{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.03);cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:10px}
+    .sat-item:hover,.sat-item.selected{background:rgba(255,255,255,0.04)}
+    .sat-color{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+    .sat-info{flex:1;min-width:0}
+    .sat-name{font-size:9px;color:rgba(255,255,255,0.65);letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sat-meta{font-size:8px;color:rgba(255,255,255,0.2);margin-top:2px;letter-spacing:0.5px}
+    .sat-alt{font-size:8px;color:rgba(255,255,255,0.25);flex-shrink:0}
+
+    .lp-footer{padding:12px 16px;border-top:1px solid var(--border)}
+    .lp-count{font-size:8px;letter-spacing:2px;color:rgba(255,255,255,0.18);text-transform:uppercase}
+
+    /* TOGGLE PANEL BTN */
+    #panel-toggle{position:fixed;left:280px;top:50%;transform:translateY(-50%);z-index:51;background:rgba(0,0,0,0.7);border:1px solid var(--border);border-left:none;padding:12px 6px;cursor:pointer;color:rgba(255,255,255,0.3);font-size:10px;transition:all .2s;backdrop-filter:blur(8px)}
+    #panel-toggle:hover{color:#fff;background:rgba(255,255,255,0.06)}
+    #panel-toggle.collapsed{left:0}
+    #panel-toggle.collapsed::after{content:'›'}
+    #panel-toggle:not(.collapsed)::after{content:'‹'}
+
+    /* RIGHT INFO PANEL */
+    #info-panel{position:fixed;right:0;top:0;bottom:0;width:260px;background:rgba(0,0,0,0.7);border-left:1px solid var(--border);z-index:50;backdrop-filter:blur(8px);display:none;flex-direction:column}
+    #info-panel.visible{display:flex}
+    .ip-header{padding:70px 16px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between}
+    .ip-name{font-size:12px;color:#fff;letter-spacing:1px;margin-bottom:4px}
+    .ip-cat{font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:2px;text-transform:uppercase}
+    .ip-close{color:rgba(255,255,255,0.25);cursor:pointer;font-size:16px;padding:4px;transition:color .2s}
+    .ip-close:hover{color:#fff}
+    .ip-body{padding:16px;flex:1;overflow-y:auto}
+    .ip-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .ip-key{font-size:8px;color:rgba(255,255,255,0.2);letter-spacing:1.5px;text-transform:uppercase}
+    .ip-val{font-size:9px;color:rgba(255,255,255,0.6);text-align:right}
+    .ip-status{display:inline-block;font-size:8px;padding:2px 8px;border:1px solid rgba(74,222,128,0.3);color:#4ade80;letter-spacing:1px}
+    .orbit-track-btn{margin:16px;font-family:var(--mono);font-size:9px;letter-spacing:1.5px;padding:10px;border:1px solid var(--border);color:rgba(255,255,255,0.4);background:transparent;cursor:pointer;width:calc(100% - 32px);transition:all .2s;text-transform:uppercase}
+    .orbit-track-btn:hover{background:rgba(255,255,255,0.06);color:#fff}
+    .orbit-track-btn.tracking{border-color:rgba(74,222,128,0.4);color:#4ade80}
+
+    /* BOTTOM HUD */
+    #bottom-hud{position:fixed;bottom:0;left:280px;right:0;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);padding:16px 20px;z-index:50;display:flex;align-items:flex-end;justify-content:space-between;transition:left .3s}
+    #bottom-hud.collapsed{left:0}
+    .hud-left{display:flex;gap:2rem;flex-wrap:wrap}
+    .hud-stat{display:flex;flex-direction:column;gap:3px}
+    .hud-label{font-size:7px;letter-spacing:2.5px;color:rgba(255,255,255,0.18);text-transform:uppercase}
+    .hud-val{font-size:12px;color:rgba(255,255,255,0.7)}
+    .hud-right{font-size:8px;letter-spacing:1px;color:rgba(255,255,255,0.18);text-align:right;line-height:2}
+    .live-dot{display:inline-block;width:5px;height:5px;background:#4ade80;border-radius:50%;margin-right:5px;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+    /* SPEED CONTROL */
+    .speed-ctrl{display:flex;align-items:center;gap:8px}
+    .speed-btn{font-size:9px;letter-spacing:1px;padding:4px 10px;border:1px solid var(--border);color:rgba(255,255,255,0.3);background:transparent;cursor:pointer;font-family:var(--mono);transition:all .2s}
+    .speed-btn:hover,.speed-btn.active{color:#fff;border-color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.05)}
+
+    /* TOOLTIP */
+    #tooltip{position:fixed;background:rgba(0,0,0,0.9);border:1px solid rgba(255,255,255,0.12);padding:8px 12px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.7);pointer-events:none;display:none;line-height:2;z-index:200}
+
+    @media(max-width:900px){
+      #left-panel{transform:translateX(-280px)}
+      #left-panel.mobile-open{transform:translateX(0)}
+      #bottom-hud{left:0}
+      #panel-toggle{left:0}
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="load-logo">HEIMDALL</div>
+  <div class="load-line"><div class="load-fill" id="load-fill"></div></div>
+  <div class="load-text" id="load-text">INITIALIZING ORBITAL MECHANICS</div>
+</div>
+
+<!-- CANVAS -->
+<div id="canvas-wrap"></div>
+
+<!-- TOP NAV -->
+<div id="top-nav">
+  <a class="nav-logo" href="../">
+    <div class="logo-ring"><div class="logo-core"></div></div>
+    HEIMDALL
+  </a>
+  <div class="nav-right">
+    <a class="nav-link" href="../bifrost/">Bifrost</a>
+    <a class="nav-link active-page">Live Map</a>
+    <a class="nav-link" href="../">Home</a>
+  </div>
+</div>
+
+<!-- PANEL TOGGLE -->
+<div id="panel-toggle" title="Toggle panel"></div>
+
+<!-- LEFT PANEL -->
+<div id="left-panel">
+  <div class="lp-header">
+    <div class="lp-title">Object Catalog</div>
+    <div class="search-box">
+      <input class="search-input" id="search-input" type="text" placeholder="Search satellites..."/>
+      <div class="search-btn">⌕</div>
+    </div>
+  </div>
+
+  <div class="filter-section">
+    <div class="fs-label">Filter by Type</div>
+    <div class="filter-chips">
+      <div class="chip on" data-cat="all">All</div>
+      <div class="chip on" data-cat="stations"><span class="chip-dot" style="background:#60a5fa"></span>Stations</div>
+      <div class="chip on" data-cat="starlink"><span class="chip-dot" style="background:#4ade80"></span>Starlink</div>
+      <div class="chip on" data-cat="weather"><span class="chip-dot" style="background:#facc15"></span>Weather</div>
+      <div class="chip on" data-cat="debris"><span class="chip-dot" style="background:#f87171"></span>Debris</div>
+      <div class="chip on" data-cat="active"><span class="chip-dot" style="background:#4ade80"></span>Active</div>
+    </div>
+  </div>
+
+  <div class="sat-list" id="sat-list"></div>
+
+  <div class="lp-footer">
+    <div class="lp-count"><span class="live-dot"></span><span id="vis-count">—</span> OBJECTS VISIBLE</div>
+  </div>
+</div>
+
+<!-- RIGHT INFO PANEL -->
+<div id="info-panel">
+  <div class="ip-header">
+    <div>
+      <div class="ip-name" id="ip-name">—</div>
+      <div class="ip-cat" id="ip-cat">—</div>
+    </div>
+    <div class="ip-close" id="ip-close">✕</div>
+  </div>
+  <div class="ip-body" id="ip-body"></div>
+  <button class="orbit-track-btn" id="track-btn">TRACK ORBIT</button>
+</div>
+
+<!-- TOOLTIP -->
+<div id="tooltip"></div>
+
+<!-- BOTTOM HUD -->
+<div id="bottom-hud">
+  <div class="hud-left">
+    <div class="hud-stat">
+      <div class="hud-label">UTC</div>
+      <div class="hud-val" id="hud-utc">—</div>
+    </div>
+    <div class="hud-stat">
+      <div class="hud-label">Objects</div>
+      <div class="hud-val" id="hud-count">—</div>
+    </div>
+    <div class="hud-stat">
+      <div class="hud-label">Status</div>
+      <div class="hud-val"><span class="live-dot"></span><span id="hud-status">LOADING</span></div>
+    </div>
+    <div class="hud-stat">
+      <div class="hud-label">Time Scale</div>
+      <div class="speed-ctrl">
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="10">10×</button>
+        <button class="speed-btn" data-speed="60">60×</button>
+        <button class="speed-btn" data-speed="600">600×</button>
+      </div>
+    </div>
+  </div>
+  <div class="hud-right">
+    DRAG ROTATE &nbsp;·&nbsp; SCROLL ZOOM &nbsp;·&nbsp; CLICK OBJECT
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  const RAD = Math.PI/180;
+  const EARTH_R = 1.0;
+  const KM = 1/6371;
+  let timeScale = 1;
+  let trackedSat = null;
+  let selectedMesh = null;
+
+  function pad(v){ return String(v).padStart(2,'0'); }
+  function setLoad(p,t){
+    document.getElementById('load-fill').style.width=p+'%';
+    document.getElementById('load-text').textContent=t;
+  }
+
+  function getSyntheticPos(sat,T){
+    const period = sat.period*60;
+    const M = sat.M+(2*Math.PI/period)*T;
+    const r = sat.alt;
+    const ci=Math.cos(sat.inc), si=Math.sin(sat.inc);
+    const cr=Math.cos(sat.raan), sr=Math.sin(sat.raan);
+    const xp=r*Math.cos(M), yp=r*Math.sin(M);
+    const x=xp*cr-yp*sr*ci;
+    const y=xp*si*sr+yp*si*cr; // wait — rearranged correctly:
+    const xw=xp*(cr)-yp*(sr*ci);
+    const yw=xp*(sr)+yp*(cr*ci);
+    const zw=yp*si;
+    const GMST=(280.46+360.985*(T/86400))*RAD;
+    const cg=Math.cos(-GMST), sg=Math.sin(-GMST);
+    return{x:cg*xw-sg*zw, y:zw*0+yw, z:sg*xw+cg*zw};
+  }
+
+  function genSatellites(){
+    const s=[];
+    // Crewed stations
+    [{name:'ISS (ZARYA)',inc:51.6,raan:10,M:0,alt:408,period:92.5},
+     {name:'CSS (TIANHE)',inc:41.5,raan:120,M:1.1,alt:390,period:91.5},
+     {name:'HST (Hubble)',inc:28.5,raan:200,M:2.2,alt:537,period:95.4}
+    ].forEach(o=>s.push({...o,inc:o.inc*RAD,raan:o.raan*RAD,alt:o.alt*KM+EARTH_R,cat:'stations'}));
+
+    // Starlink planes
+    for(let i=0;i<160;i++){
+      s.push({name:'STARLINK-'+(1000+i),inc:53*RAD,raan:(Math.floor(i/10)*36)*RAD,M:(i%10*36)*RAD,alt:550*KM+EARTH_R,period:95.5,cat:'starlink'});
+    }
+    // OneWeb
+    for(let i=0;i<50;i++){
+      s.push({name:'ONEWEB-'+i,inc:87.9*RAD,raan:(i*7.2)*RAD,M:(i*13)*RAD,alt:1200*KM+EARTH_R,period:109,cat:'starlink'});
+    }
+    // Weather
+    [['NOAA-15',98.7,833,102,0],['NOAA-18',99.0,854,102,36],['NOAA-19',98.7,870,102,72],
+     ['METOP-A',98.7,817,101,108],['METOP-B',98.7,817,101,144],['METOP-C',98.7,817,101,180],
+     ['GOES-18',0.1,35786,1436,0],['GOES-16',0.1,35786,1436,45],
+     ['HIMAWARI-9',0.1,35786,1436,90],['MSG-4',0.1,35786,1436,135],
+     ['FENGYUN-4A',0.1,35786,1436,180]
+    ].forEach(([name,inc,alt,period,raan])=>s.push({name,inc:inc*RAD,raan:raan*RAD,M:Math.random()*2*Math.PI,alt:alt*KM+EARTH_R,period,cat:'weather'}));
+
+    // Debris belt
+    for(let i=0;i<120;i++){
+      s.push({name:'DEBRIS-'+Math.floor(10000+Math.random()*89999),inc:(20+Math.random()*130)*RAD,raan:Math.random()*2*Math.PI,M:Math.random()*2*Math.PI,alt:(300+Math.random()*1400)*KM+EARTH_R,period:90+Math.random()*65,cat:'debris'});
+    }
+    // Active misc
+    const active_names=['TERRA','AQUA','LANDSAT-9','SENTINEL-2A','SENTINEL-6','CRYOSAT-2','JASON-3','CALIPSO','CLOUDSAT','SUOMI-NPP','WORLDVIEW-3','PLEIADES-1A','ICESAT-2','GRACE-FO-1','SWOT'];
+    for(let i=0;i<200;i++){
+      s.push({
+        name: i<active_names.length ? active_names[i] : 'SAT-'+Math.floor(10000+Math.random()*89999),
+        inc:Math.random()*140*RAD,raan:Math.random()*2*Math.PI,M:Math.random()*2*Math.PI,
+        alt:(400+Math.random()*35000)*KM+EARTH_R,period:90+Math.random()*1400,cat:'active'
+      });
+    }
+    return s;
+  }
+
+  // THREE setup
+  const wrap = document.getElementById('canvas-wrap');
+  const W = window.innerWidth, H = window.innerHeight;
+  const renderer = new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  renderer.setClearColor(0x000000,1);
+  wrap.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45,W/H,0.001,2000);
+  camera.position.set(0,0,4);
+
+  // Stars
+  const starPos = new Float32Array(12000);
+  for(let i=0;i<12000;i++) starPos[i]=(Math.random()-0.5)*400;
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position',new THREE.BufferAttribute(starPos,3));
+  scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:0.06,transparent:true,opacity:0.5})));
+
+  // Milky way band (extra stars in a band)
+  const mwPos = new Float32Array(3000);
+  for(let i=0;i<1000;i++){
+    const t=Math.random()*Math.PI*2, r=80+Math.random()*20;
+    mwPos[i*3]=r*Math.cos(t)*4; mwPos[i*3+1]=r*Math.sin(t)*0.15+(Math.random()-0.5)*30; mwPos[i*3+2]=r*Math.sin(t)*2;
+  }
+  const mwGeo=new THREE.BufferGeometry(); mwGeo.setAttribute('position',new THREE.BufferAttribute(mwPos,3));
+  scene.add(new THREE.Points(mwGeo,new THREE.PointsMaterial({color:0xaabbff,size:0.05,transparent:true,opacity:0.2})));
+
+  // Earth
+  const earthMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R,96,96),
+    new THREE.MeshPhongMaterial({color:0x0b1c35,emissive:0x040d1a,shininess:20})
+  );
+  scene.add(earthMesh);
+
+  // Atmosphere
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R*1.018,64,64),
+    new THREE.MeshPhongMaterial({color:0x1a5090,transparent:true,opacity:0.10,side:THREE.FrontSide})
+  ));
+
+  // Terminator shadow (approximate night side)
+  const shadowMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R*1.001,64,64),
+    new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.45,side:THREE.BackSide})
+  );
+  scene.add(shadowMesh);
+
+  // Grid lines
+  const gMat=new THREE.LineBasicMaterial({color:0x1a3d70,transparent:true,opacity:0.22});
+  const eqMat=new THREE.LineBasicMaterial({color:0x2255aa,transparent:true,opacity:0.35});
+  for(let lat=-80;lat<=80;lat+=20){
+    const pts=[],la=lat*RAD,r=EARTH_R*1.001;
+    for(let lng=0;lng<=360;lng+=3){const lo=lng*RAD;pts.push(r*Math.cos(la)*Math.cos(lo),r*Math.sin(la),r*Math.cos(la)*Math.sin(lo));}
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pts),3));
+    scene.add(new THREE.Line(g,lat===0?eqMat:gMat));
+  }
+  for(let lng=0;lng<360;lng+=20){
+    const pts=[],lo=lng*RAD,r=EARTH_R*1.001;
+    for(let lat=-88;lat<=88;lat+=3){const la=lat*RAD;pts.push(r*Math.cos(la)*Math.cos(lo),r*Math.sin(la),r*Math.cos(la)*Math.sin(lo));}
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pts),3));
+    scene.add(new THREE.Line(g,gMat));
+  }
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0x223355,2.5));
+  const sun=new THREE.DirectionalLight(0xfffaee,1.6); sun.position.set(8,3,5); scene.add(sun);
+
+  // SAT MESHES
+  const CATS={
+    stations:{color:0x60a5fa,size:0.025},
+    starlink:{color:0x4ade80,size:0.006},
+    weather:{color:0xfacc15,size:0.012},
+    debris:{color:0xf87171,size:0.004},
+    active:{color:0x4ade80,size:0.006}
+  };
+  const matCache={}, matHover={};
+  function getMat(cat,hover=false){
+    const key=cat+(hover?'_h':'');
+    if(!matCache[key]){
+      const c=CATS[cat]||CATS.active;
+      matCache[key]=new THREE.MeshBasicMaterial({color:hover?0xffffff:c.color});
+    }
+    return matCache[key];
+  }
+
+  let satellites=[], satMeshes=[], visibleCats=new Set(['all','stations','starlink','weather','debris','active']);
+  let orbitLine=null;
+
+  function buildSatMeshes(sats){
+    satMeshes.forEach(m=>scene.remove(m));
+    satMeshes=[];
+    satellites=sats;
+    sats.forEach(s=>{
+      const cat=s.cat||'active';
+      const sz=(CATS[cat]||CATS.active).size;
+      const mesh=new THREE.Mesh(new THREE.SphereGeometry(sz,4,4),getMat(cat));
+      mesh.userData.sat=s;
+      scene.add(mesh);
+      satMeshes.push(mesh);
+    });
+    updateSatList(sats);
+    document.getElementById('hud-count').textContent=sats.length.toLocaleString();
+    document.getElementById('vis-count').textContent=sats.length.toLocaleString();
+  }
+
+  // SAT LIST
+  function updateSatList(sats){
+    const list=document.getElementById('sat-list');
+    const q=document.getElementById('search-input').value.toLowerCase();
+    const shown=sats.filter(s=>{
+      const cat=s.cat||'active';
+      const catOk=visibleCats.has('all')||visibleCats.has(cat);
+      const nameOk=!q||s.name.toLowerCase().includes(q);
+      return catOk&&nameOk;
+    }).slice(0,150);
+    list.innerHTML='';
+    shown.forEach(s=>{
+      const cat=s.cat||'active';
+      const color=CATS[cat]?'#'+CATS[cat].color.toString(16).padStart(6,'0'):'#4ade80';
+      const div=document.createElement('div');
+      div.className='sat-item';
+      div.innerHTML=`<div class="sat-color" style="background:${color}"></div><div class="sat-info"><div class="sat-name">${s.name}</div><div class="sat-meta">${cat.toUpperCase()}</div></div><div class="sat-alt">${Math.round((s.alt-EARTH_R)/KM).toLocaleString()} km</div>`;
+      div.addEventListener('click',()=>selectSat(s,div));
+      list.appendChild(div);
+    });
+  }
+
+  // SELECT SAT
+  function selectSat(s,listEl){
+    document.querySelectorAll('.sat-item').forEach(el=>el.classList.remove('selected'));
+    if(listEl) listEl.classList.add('selected');
+    document.getElementById('info-panel').classList.add('visible');
+    document.getElementById('ip-name').textContent=s.name;
+    document.getElementById('ip-cat').textContent=(s.cat||'active').toUpperCase();
+    const alt=Math.round((s.alt-EARTH_R)/KM);
+    const body=document.getElementById('ip-body');
+    body.innerHTML=`
+      <div class="ip-row"><div class="ip-key">Status</div><div class="ip-val"><span class="ip-status">${s.cat==='debris'?'DEBRIS':'ACTIVE'}</span></div></div>
+      <div class="ip-row"><div class="ip-key">Category</div><div class="ip-val">${(s.cat||'active').toUpperCase()}</div></div>
+      <div class="ip-row"><div class="ip-key">Altitude</div><div class="ip-val">${alt.toLocaleString()} km</div></div>
+      <div class="ip-row"><div class="ip-key">Inclination</div><div class="ip-val">${(s.inc/RAD).toFixed(1)}°</div></div>
+      <div class="ip-row"><div class="ip-key">Period</div><div class="ip-val">${s.period.toFixed(1)} min</div></div>
+      <div class="ip-row"><div class="ip-key">Orbit Type</div><div class="ip-val">${alt<2000?'LEO':alt<35786?'MEO':'GEO'}</div></div>
+      <div class="ip-row"><div class="ip-key">Velocity</div><div class="ip-val">~${(Math.sqrt(398600/(6371+alt))).toFixed(2)} km/s</div></div>
+    `;
+    selectedMesh=satMeshes.find(m=>m.userData.sat===s)||null;
+    if(trackedSat===s){
+      document.getElementById('track-btn').classList.add('tracking');
+      document.getElementById('track-btn').textContent='TRACKING ✓';
+    } else {
+      document.getElementById('track-btn').classList.remove('tracking');
+      document.getElementById('track-btn').textContent='TRACK ORBIT';
+    }
+    drawOrbit(s);
+  }
+
+  function drawOrbit(s){
+    if(orbitLine) scene.remove(orbitLine);
+    const pts=[];
+    const T0=elapsedSec;
+    for(let i=0;i<=360;i++){
+      const t=T0+(i/360)*s.period*60;
+      const p=getSyntheticPos(s,t);
+      if(p) pts.push(new THREE.Vector3(p.x,p.y,p.z));
+    }
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    const cat=s.cat||'active';
+    const color=CATS[cat]?CATS[cat].color:0x4ade80;
+    orbitLine=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:0.4}));
+    scene.add(orbitLine);
+  }
+
+  // CONTROLS
+  let isDrag=false,lastX=0,lastY=0,rotX=0.3,rotY=0,zoom=4,targetZoom=4;
+  const cvs=renderer.domElement;
+  cvs.addEventListener('mousedown',e=>{isDrag=true;lastX=e.clientX;lastY=e.clientY});
+  window.addEventListener('mouseup',()=>isDrag=false);
+  window.addEventListener('mousemove',e=>{
+    if(isDrag){rotY+=(e.clientX-lastX)*0.004;rotX+=(e.clientY-lastY)*0.004;rotX=Math.max(-1.5,Math.min(1.5,rotX));lastX=e.clientX;lastY=e.clientY;if(trackedSat)trackedSat=null;}
+    // Hover tooltip
+    handleHover(e);
+  });
+  cvs.addEventListener('wheel',e=>{targetZoom=Math.max(1.3,Math.min(12,targetZoom+e.deltaY*0.003));e.preventDefault();},{passive:false});
+  cvs.addEventListener('touchstart',e=>{if(e.touches.length===1){isDrag=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}},{passive:true});
+  cvs.addEventListener('touchmove',e=>{if(isDrag&&e.touches.length===1){rotY+=(e.touches[0].clientX-lastX)*0.004;rotX+=(e.touches[0].clientY-lastY)*0.004;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}},{passive:true});
+  cvs.addEventListener('touchend',()=>isDrag=false);
+
+  // Click to select
+  const raycaster=new THREE.Raycaster();
+  const mouse=new THREE.Vector2();
+  let lastClick=0;
+  cvs.addEventListener('click',e=>{
+    const now=Date.now(); if(now-lastClick<300)return; lastClick=now;
+    const rect=cvs.getBoundingClientRect();
+    mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+    mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(mouse,camera);
+    const hits=raycaster.intersectObjects(satMeshes.filter(m=>m.visible));
+    if(hits.length){
+      const s=hits[0].object.userData.sat;
+      selectSat(s,null);
+    }
+  });
+
+  // Hover tooltip
+  const tip=document.getElementById('tooltip');
+  function handleHover(e){
+    if(isDrag){tip.style.display='none';return;}
+    const rect=cvs.getBoundingClientRect();
+    mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+    mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(mouse,camera);
+    const hits=raycaster.intersectObjects(satMeshes.filter(m=>m.visible));
+    if(hits.length){
+      const s=hits[0].object.userData.sat;
+      const alt=Math.round((s.alt-EARTH_R)/KM);
+      tip.style.display='block';
+      tip.style.left=(e.clientX+16)+'px';
+      tip.style.top=(e.clientY-20)+'px';
+      tip.innerHTML=`<b style="color:#fff;letter-spacing:2px">${s.name}</b><br>ALT: ${alt.toLocaleString()} KM &nbsp;·&nbsp; ${(s.cat||'SAT').toUpperCase()}`;
+      cvs.style.cursor='pointer';
+    } else {
+      tip.style.display='none';
+      cvs.style.cursor='grab';
+    }
+  }
+
+  // Filter chips
+  document.querySelectorAll('.chip:not([data-cat="all"])').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      const cat=chip.dataset.cat;
+      chip.classList.toggle('on');
+      if(chip.classList.contains('on')) visibleCats.add(cat);
+      else visibleCats.delete(cat);
+      applyVisibility();
+      updateSatList(satellites);
+    });
+  });
+  document.querySelector('.chip[data-cat="all"]').addEventListener('click',function(){
+    const allOn=!this.classList.contains('on');
+    this.classList.toggle('on');
+    document.querySelectorAll('.chip:not([data-cat="all"])').forEach(c=>{
+      allOn?c.classList.add('on'):c.classList.remove('on');
+    });
+    visibleCats=allOn?new Set(['all','stations','starlink','weather','debris','active']):new Set();
+    applyVisibility();
+    updateSatList(satellites);
+  });
+
+  function applyVisibility(){
+    satMeshes.forEach(m=>{
+      const cat=m.userData.sat.cat||'active';
+      m.visible=visibleCats.has('all')||visibleCats.has(cat);
+    });
+    const vis=satMeshes.filter(m=>m.visible).length;
+    document.getElementById('vis-count').textContent=vis.toLocaleString();
+    document.getElementById('hud-count').textContent=vis.toLocaleString();
+  }
+
+  // Search
+  document.getElementById('search-input').addEventListener('input',()=>updateSatList(satellites));
+
+  // Panel toggle
+  const panel=document.getElementById('left-panel');
+  const toggle=document.getElementById('panel-toggle');
+  const hud=document.getElementById('bottom-hud');
+  let panelOpen=true;
+  toggle.addEventListener('click',()=>{
+    panelOpen=!panelOpen;
+    panel.classList.toggle('collapsed',!panelOpen);
+    toggle.classList.toggle('collapsed',!panelOpen);
+    toggle.style.left=panelOpen?'280px':'0';
+    hud.classList.toggle('collapsed',!panelOpen);
+  });
+
+  // Info panel close
+  document.getElementById('ip-close').addEventListener('click',()=>{
+    document.getElementById('info-panel').classList.remove('visible');
+    if(orbitLine){scene.remove(orbitLine);orbitLine=null;}
+    trackedSat=null;
+  });
+
+  // Track button
+  document.getElementById('track-btn').addEventListener('click',function(){
+    if(!selectedMesh) return;
+    const s=selectedMesh.userData.sat;
+    if(trackedSat===s){trackedSat=null;this.textContent='TRACK ORBIT';this.classList.remove('tracking');}
+    else{trackedSat=s;this.textContent='TRACKING ✓';this.classList.add('tracking');}
+  });
+
+  // Speed buttons
+  document.querySelectorAll('.speed-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active'));
+      this.classList.add('active');
+      timeScale=parseInt(this.dataset.speed);
+    });
+  });
+
+  // Clock
+  function updateClock(){
+    const n=new Date();
+    const t=pad(n.getUTCHours())+':'+pad(n.getUTCMinutes())+':'+pad(n.getUTCSeconds());
+    document.getElementById('hud-utc').textContent=t;
+  }
+
+  // Animate
+  let elapsedSec=0;
+  let lastRAF=performance.now();
+  function animate(){
+    requestAnimationFrame(animate);
+    const now=performance.now();
+    const dt=(now-lastRAF)/1000;
+    lastRAF=now;
+    elapsedSec+=dt*timeScale;
+
+    // Smooth zoom
+    zoom+=(targetZoom-zoom)*0.08;
+
+    satMeshes.forEach(m=>{
+      const p=getSyntheticPos(m.userData.sat,elapsedSec);
+      if(p) m.position.set(p.x,p.y,p.z);
+    });
+    earthMesh.rotation.y=elapsedSec*0.01*(Math.PI/180)*360/86400*100;
+
+    // Camera
+    if(trackedSat&&selectedMesh){
+      const p=selectedMesh.position;
+      const offset=new THREE.Vector3(p.x,p.y,p.z).normalize().multiplyScalar(zoom);
+      camera.position.lerp(offset,0.03);
+      camera.lookAt(p.x*0.3,p.y*0.3,p.z*0.3);
+    } else {
+      camera.position.x=zoom*Math.sin(rotY)*Math.cos(rotX);
+      camera.position.y=zoom*Math.sin(rotX);
+      camera.position.z=zoom*Math.cos(rotY)*Math.cos(rotX);
+      camera.lookAt(0,0,0);
+    }
+    updateClock();
+    renderer.render(scene,camera);
+  }
+
+  // Resize
+  window.addEventListener('resize',()=>{
+    const w=window.innerWidth,h=window.innerHeight;
+    camera.aspect=w/h;camera.updateProjectionMatrix();
+    renderer.setSize(w,h);
+  });
+
+  // INIT
+  setLoad(20,'BUILDING EARTH MODEL');
+  setTimeout(()=>{
+    setLoad(55,'PROPAGATING ORBITAL MECHANICS');
+    setTimeout(()=>{
+      const sats=genSatellites();
+      buildSatMeshes(sats);
+      setLoad(90,'SYNCHRONIZING FEEDS');
+      setTimeout(()=>{
+        setLoad(100,'ORBITAL FEED ACTIVE');
+        setTimeout(()=>{
+          document.getElementById('loading').style.display='none';
+          document.getElementById('hud-status').textContent='OPERATIONAL';
+          animate();
+        },300);
+      },400);
+    },500);
+  },300);
+})();
+</script>
+</body>
+</html>
